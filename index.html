@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Маленький секрет</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Canvas Confetti для праздничного эффекта -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <!-- Google Fonts: Comfortaa & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .heading-font {
+      font-family: 'Comfortaa', cursive;
+    }
+    /* Анимация встряхивания для неправильного ответа */
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+    .animate-shake {
+      animation: shake 0.4s ease-in-out;
+    }
+  </style>
+</head>
+<body class="min-h-screen min-h-[100dvh] bg-slate-950 text-slate-100 flex items-center justify-center p-4 selection:bg-rose-500 selection:text-white relative overflow-x-hidden">
+
+  <!-- Фиксированный фон (решает проблему с повторением и скроллом на мобильных устройствах) -->
+  <div class="fixed inset-0 -z-10 pointer-events-none overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-rose-950">
+    <div class="absolute -top-32 -left-32 w-80 h-80 bg-rose-600/15 rounded-full blur-3xl"></div>
+    <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl"></div>
+  </div>
+
+  <!-- Главный блок с вопросами -->
+  <main id="quiz-card" class="relative z-10 w-full max-w-lg bg-slate-900/85 backdrop-blur-xl border border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl transition-all duration-700 my-auto">
+    <!-- Заголовок -->
+    <header class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-12 h-12 mb-3 rounded-2xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+      </div>
+      <h1 class="heading-font text-2xl sm:text-3xl font-bold text-white tracking-wide">
+        Проверка памяти
+      </h1>
+      <p class="text-sm text-slate-400 mt-2">
+        Ответь на три простых вопроса, чтобы снять блокировку
+      </p>
+    </header>
+
+    <form id="quiz-form" class="space-y-6" onsubmit="event.preventDefault(); checkAnswers();">
+      
+      <!-- Вопрос 1 -->
+      <div id="group-q1" class="space-y-2 p-4 rounded-2xl bg-slate-800/40 border border-transparent transition-all">
+        <label for="q1-input" class="block text-sm font-medium text-slate-200">
+          1. Как зовут нашего попугая?
+        </label>
+        <div class="relative">
+          <input
+            id="q1-input"
+            type="text"
+            autocomplete="off"
+            placeholder="Введи имя..."
+            class="w-full px-4 py-3 rounded-xl bg-slate-950/60 border border-slate-700/80 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500/50 transition duration-200"
+          />
+        </div>
+        <p id="error-q1" class="text-xs text-rose-400 hidden pt-1">
+          Не совсем так... Вспомни хорошенько крылатого!
+        </p>
+      </div>
+
+      <!-- Вопрос 2 -->
+      <div id="group-q2" class="space-y-2 p-4 rounded-2xl bg-slate-800/40 border border-transparent transition-all">
+        <div class="flex flex-col">
+          <label for="q2-input" class="block text-sm font-medium text-slate-200">
+            2. Место нашей первой встречи?
+          </label>
+          <span class="text-xs text-rose-300/80 italic mt-0.5">
+            Подсказка: «У *место*»
+          </span>
+        </div>
+        <div class="relative">
+          <input
+            id="q2-input"
+            type="text"
+            autocomplete="off"
+            placeholder="Например: У ..."
+            class="w-full px-4 py-3 rounded-xl bg-slate-950/60 border border-slate-700/80 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500/50 transition duration-200"
+          />
+        </div>
+        <p id="error-q2" class="text-xs text-rose-400 hidden pt-1">
+          Кажется, это было немного в другом месте :)
+        </p>
+      </div>
+
+      <!-- Вопрос 3: Степпер -->
+      <div id="group-q3" class="space-y-2 p-4 rounded-2xl bg-slate-800/40 border border-transparent transition-all">
+        <label class="block text-sm font-medium text-slate-200">
+          3. Насколько я тогда опоздал?
+        </label>
+
+        <div class="flex items-center justify-between gap-3 pt-1">
+          <!-- Кнопка Минус -->
+          <button
+            type="button"
+            onclick="adjustTime(-30)"
+            class="h-12 w-16 sm:w-20 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-100 font-bold text-xl border border-slate-700 transition flex items-center justify-center select-none shadow-sm"
+            aria-label="Уменьшить на 30 минут"
+          >
+            -
+          </button>
+
+          <!-- Отображение текущего значения -->
+          <div class="flex-1 text-center py-2.5 px-3 rounded-xl bg-slate-950/60 border border-slate-700/80">
+            <span id="time-display" class="heading-font text-lg font-bold text-rose-400 tracking-wide">
+              0 минут
+            </span>
+          </div>
+
+          <!-- Кнопка Плюс -->
+          <button
+            type="button"
+            onclick="adjustTime(30)"
+            class="h-12 w-16 sm:w-20 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-100 font-bold text-xl border border-slate-700 transition flex items-center justify-center select-none shadow-sm"
+            aria-label="Увеличить на 30 минут"
+          >
+            +
+          </button>
+        </div>
+        <p id="error-q3" class="text-xs text-rose-400 hidden pt-1">
+          Не угадал(а)! Время было немного другим.
+        </p>
+      </div>
+
+      <!-- Кнопка Подтверждения -->
+      <div class="pt-3">
+        <button
+          type="button"
+          onclick="checkAnswers()"
+          class="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 active:scale-[0.99] text-white font-semibold text-base shadow-lg shadow-rose-900/30 transition-all duration-200 flex items-center justify-center gap-2"
+        >
+          <span>Подтвердить</span>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+          </svg>
+        </button>
+      </div>
+    </form>
+  </main>
+
+  <!-- Полноэкранный финал (изначально скрыт) -->
+  <div
+    id="success-screen"
+    class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-2xl opacity-0 pointer-events-none transition-opacity duration-1000 flex items-center justify-center p-6 sm:p-12 text-center"
+  >
+    <div class="max-w-2xl mx-auto space-y-8 transform scale-95 transition-transform duration-1000" id="success-content">
+      
+      <!-- Декоративная иконка шкатулки/подарка -->
+      <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/40 shadow-xl shadow-rose-500/10 animate-bounce">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V4a2 2 0 10-2 2h2zm0 13l-4-4m4 4l4-4M3 10h18M5 10v10a2 2 0 002 2h10a2 2 0 002-2V10" />
+        </svg>
+      </div>
+
+      <!-- Главный секретный текст -->
+      <p class="heading-font text-2xl sm:text-3xl md:text-4xl text-slate-100 leading-relaxed font-semibold tracking-wide">
+        Все уложены, теперь можно выдохнуть, скинуть парадное и залезть в домашнее. Открывай шкаф — там то, ради чего всё затевалось...
+      </p>
+
+      <div class="pt-4">
+        <span class="inline-block px-4 py-2 rounded-full border border-rose-400/30 text-rose-300 text-sm tracking-widest uppercase font-medium bg-rose-500/10">
+          Тайна раскрыта ✨
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Текущее состояние счетчика времени
+    let currentMinutes = 0;
+
+    // Изменение времени с шагом
+    function adjustTime(delta) {
+      currentMinutes += delta;
+      // Ограничение: не уходить в отрицательные значения
+      if (currentMinutes < 0) {
+        currentMinutes = 0;
+      }
+      // Максимум (12 часов)
+      if (currentMinutes > 720) {
+        currentMinutes = 720;
+      }
+      
+      const display = document.getElementById('time-display');
+      display.textContent = `${currentMinutes} минут`;
+
+      // Сбрасываем ошибку третьего поля при взаимодействии
+      resetFieldState('group-q3', 'error-q3');
+    }
+
+    // Нормализация строки для надежного сравнения
+    function normalize(text) {
+      return (text || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g, "")
+        .replace(/\s+/g, ' ');
+    }
+
+    // Сброс стиля карточки
+    function resetFieldState(groupId, errorId) {
+      const group = document.getElementById(groupId);
+      const err = document.getElementById(errorId);
+      if (group) {
+        group.classList.remove('border-rose-500/80', 'bg-rose-950/20', 'border-emerald-500/80', 'bg-emerald-950/20', 'animate-shake');
+      }
+      if (err) {
+        err.classList.add('hidden');
+      }
+    }
+
+    // Установка состояния ошибки
+    function setFieldError(groupId, errorId) {
+      const group = document.getElementById(groupId);
+      const err = document.getElementById(errorId);
+      
+      group.classList.remove('border-emerald-500/80', 'bg-emerald-950/20');
+      group.classList.add('border-rose-500/80', 'bg-rose-950/20', 'animate-shake');
+      
+      setTimeout(() => {
+        group.classList.remove('animate-shake');
+      }, 400);
+
+      if (err) {
+        err.classList.remove('hidden');
+      }
+    }
+
+    // Установка успешного состояния
+    function setFieldSuccess(groupId, errorId) {
+      const group = document.getElementById(groupId);
+      const err = document.getElementById(errorId);
+      
+      group.classList.remove('border-rose-500/80', 'bg-rose-950/20', 'animate-shake');
+      group.classList.add('border-emerald-500/80', 'bg-emerald-950/20');
+      
+      if (err) {
+        err.classList.add('hidden');
+      }
+    }
+
+    // Очистка ошибок при повторном вводе
+    document.getElementById('q1-input').addEventListener('input', () => {
+      resetFieldState('group-q1', 'error-q1');
+    });
+    document.getElementById('q2-input').addEventListener('input', () => {
+      resetFieldState('group-q2', 'error-q2');
+    });
+
+    // Проверка всех ответов
+    function checkAnswers() {
+      const q1Val = normalize(document.getElementById('q1-input').value);
+      const q2Val = normalize(document.getElementById('q2-input').value);
+
+      // Правильные ответы
+      const isQ1Correct = q1Val === 'гера';
+      const isQ2Correct = q2Val === 'у арбуза' || q2Val === 'уарбуза' || q2Val === 'арбуз' || q2Val === 'у арбузика';
+      const isQ3Correct = currentMinutes === 60;
+
+      // Вопрос 1
+      if (isQ1Correct) {
+        setFieldSuccess('group-q1', 'error-q1');
+      } else {
+        setFieldError('group-q1', 'error-q1');
+      }
+
+      // Вопрос 2
+      if (isQ2Correct) {
+        setFieldSuccess('group-q2', 'error-q2');
+      } else {
+        setFieldError('group-q2', 'error-q2');
+      }
+
+      // Вопрос 3
+      if (isQ3Correct) {
+        setFieldSuccess('group-q3', 'error-q3');
+      } else {
+        setFieldError('group-q3', 'error-q3');
+      }
+
+      // Если всё правильно — показываем секрет
+      if (isQ1Correct && isQ2Correct && isQ3Correct) {
+        triggerSuccess();
+      }
+    }
+
+    function triggerSuccess() {
+      // Конфетти
+      if (typeof confetti === 'function') {
+        confetti({
+          particleCount: 120,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+        setTimeout(() => {
+          confetti({
+            particleCount: 80,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0 }
+          });
+          confetti({
+            particleCount: 80,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1 }
+          });
+        }, 300);
+      }
+
+      // Плавный переход на экран успеха
+      const quizCard = document.getElementById('quiz-card');
+      const successScreen = document.getElementById('success-screen');
+      const successContent = document.getElementById('success-content');
+
+      quizCard.classList.add('opacity-0', 'scale-90');
+
+      setTimeout(() => {
+        successScreen.classList.remove('opacity-0', 'pointer-events-none');
+        successScreen.classList.add('opacity-100', 'pointer-events-auto');
+        successContent.classList.remove('scale-95');
+        successContent.classList.add('scale-100');
+      }, 400);
+    }
+  </script>
+</body>
+</html>
